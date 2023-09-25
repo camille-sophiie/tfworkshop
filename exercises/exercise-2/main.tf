@@ -10,7 +10,62 @@ resource "aws_vpc" "main" {
   # enable DNS support
   # create Name tag with value taken from the "name" variable
 }
+#
+# Creates private subnets using the variable private_subnets_cidr_blocks for CIDR definition.
+# Documentation : https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/subnet
+#
+resource "aws_subnet" "private_subnet" {
+  count = length(var.private_subnets_cidr_blocks)
+  tags = {
+    Name = "Private subnet ${count.index}"
+  }
+  #   TODO: Add required arguments:
+  #   vpc id
+  #   cidr block for the subnet
+  #   availability zone
+}
+#
+# Creates private route table for all private subnets to route internet traffic to the NAT Gateway.
+# Documentation : https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route_table
+#
+resource "aws_route_table" "private_route_table" {
+  # TODO: Add required aruments:
+  # vpc id
+  # Name tag with value of "Private route table"
+}
 
+# Associates of private route table with private subnets.
+# Documentation : https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route_table_association
+#
+resource "aws_route_table_association" "private_route_table_association" {
+  count = length(var.private_subnets_cidr_blocks)
+  # TODO : Add required arguments
+  # subnet id
+  # route table id
+}
+# Creates public subnets using the variable public_subnets_cidr_blocks for CIDR definition.
+# Documentation : https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/subnet
+#
+resource "aws_subnet" "public_subnet" {
+  count             = length(var.public_subnets_cidr_blocks)
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = var.public_subnets_cidr_blocks[count.index]
+  availability_zone = data.aws_availability_zones.az.names[count.index]
+
+  tags = {
+    Name = "Public subnet ${count.index}"
+  }
+}
+#
+# Creates public route table for all public subnets to route internet traffic to the Internet Gateway.
+# Documentation : https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route_table
+#
+resource "aws_route_table" "public_route_table" {
+  vpc_id = aws_vpc.main.id
+  tags = {
+    Name = "Public route table"
+  }
+}
 #
 # Creates a default security group withg no rules, associated to the VPC.
 # Documentation : https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/default_security_group
@@ -40,40 +95,12 @@ resource "aws_default_security_group" "default" {
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.main.id
 }
-
 #
 # Creates an elastic IP (EIP) to associate to a NAT Gateway. It is created from the VPC subnets using the variable public_subnets_cidr_blocks.
 # Documentation : https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/eip
 #
 resource "aws_eip" "nat_eip" {
 }
-
-#
-# Creates public subnets using the variable public_subnets_cidr_blocks for CIDR definition.
-# Documentation : https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/subnet
-#
-resource "aws_subnet" "public_subnet" {
-  count             = length(var.public_subnets_cidr_blocks)
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = var.public_subnets_cidr_blocks[count.index]
-  availability_zone = data.aws_availability_zones.az.names[count.index]
-
-  tags = {
-    Name = "Public subnet ${count.index}"
-  }
-}
-
-#
-# Creates public route table for all public subnets to route internet traffic to the Internet Gateway.
-# Documentation : https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route_table
-#
-resource "aws_route_table" "public_route_table" {
-  vpc_id = aws_vpc.main.id
-  tags = {
-    Name = "Public route table"
-  }
-}
-
 #
 # Creates a route to the Internet Gateway for Internet traffic from the public subnets.
 # Documentation : https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route
@@ -111,52 +138,11 @@ resource "aws_nat_gateway" "nat" {
   depends_on = [aws_internet_gateway.igw]
 }
 
-#
-# Creates private subnets using the variable private_subnets_cidr_blocks for CIDR definition.
-# Documentation : https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/subnet
-#
-resource "aws_subnet" "private_subnet" {
-  count = length(var.private_subnets_cidr_blocks)
-  tags = {
-    Name = "Private subnet ${count.index}"
-  }
-  #   TODO: Add required arguments:
-  #   vpc id
-  #   cidr block for the subnet
-  #   availability zone
-}
 
-#
-# Creates private route table for all private subnets to route internet traffic to the NAT Gateway.
-# Documentation : https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route_table
-#
-resource "aws_route_table" "private_route_table" {
-  # TODO: Add required aruments:
-  # vpc id
-  # Name tag with value of "Private route table"
-}
 
-#
-# Creates a route to the NAT Gateway for egress traffic from the private subnets.
-# Documentation : https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route
-#
-resource "aws_route" "private_route_internet" {
-  nat_gateway_id = aws_nat_gateway.nat.id
-  # TODO: Add required arguments
-  # destination cidr block
-  # route table id
-}
 
-#
-# Associates of private route table with private subnets.
-# Documentation : https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route_table_association
-#
-resource "aws_route_table_association" "private_route_table_association" {
-  count = length(var.private_subnets_cidr_blocks)
-  # TODO : Add required arguments
-  # subnet id
-  # route table id
-}
+
+
 
 
 
